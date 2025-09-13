@@ -19,6 +19,18 @@
         .kanban-card:active { cursor: grabbing; }
         /* Sidebar transition */
         #sidebar, #main-container { transition: all 0.3s ease-in-out; }
+        .loader {
+            border: 4px solid #334155;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-200 antialiased">
@@ -33,16 +45,17 @@
             </div>
             <form id="login-form" class="space-y-6">
                 <div>
-                    <label class="text-sm font-medium text-slate-300">Tài khoản</label>
-                    <input id="username" type="text" placeholder="Vd: admin, user1" class="mt-2 w-full rounded-lg border-2 border-slate-600 bg-slate-700 px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                    <label class="text-sm font-medium text-slate-300">Email</label>
+                    <input id="username" type="email" placeholder="Vd: admin@gmail.com" class="mt-2 w-full rounded-lg border-2 border-slate-600 bg-slate-700 px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
                 </div>
                 <div>
                     <label class="text-sm font-medium text-slate-300">Mật khẩu</label>
-                    <input id="password" type="password" placeholder="Mật khẩu là 'admin' hoặc '123'" class="mt-2 w-full rounded-lg border-2 border-slate-600 bg-slate-700 px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                    <input id="password" type="password" placeholder="Mật khẩu của bạn" class="mt-2 w-full rounded-lg border-2 border-slate-600 bg-slate-700 px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
                 </div>
                 <p id="login-error" class="text-sm text-red-500 hidden"></p>
-                <button type="submit" class="w-full rounded-lg bg-blue-600 px-4 py-3 text-lg font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800">
-                    Đăng nhập
+                <button type="submit" class="w-full rounded-lg bg-blue-600 px-4 py-3 text-lg font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800 flex items-center justify-center gap-2">
+                    <span id="login-button-text">Đăng nhập</span>
+                    <div id="login-spinner" class="loader h-5 w-5 border-2 hidden"></div>
                 </button>
             </form>
         </div>
@@ -81,11 +94,14 @@
                         <i data-lucide="menu" class="h-6 w-6"></i>
                     </button>
                     <h1 id="page-title" class="text-lg font-semibold text-white"></h1>
-                    <!-- Placeholder for maybe a search bar or user avatar in the future -->
                     <div></div>
                 </header>
                 <!-- Main Content -->
                 <div id="main-content" class="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-800/20">
+                    <!-- Loading indicator for initial data load -->
+                     <div id="loading-indicator" class="flex items-center justify-center h-full">
+                        <div class="loader"></div>
+                    </div>
                     <!-- Content for pages will be injected here -->
                 </div>
             </div>
@@ -94,13 +110,28 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    //=========== MOCK DATABASE (Unchanged) ===========//
-    const usersDB = { admin: { password: 'admin', role: 'admin', name: 'Quản trị viên' }, user1: { password: '123', role: 'user', name: 'Minh Anh' }, user2: { password: '123', role: 'user', name: 'Hoàng Long' }};
-    const crmDB = { 'Lead Mới': [{ id: 1, name: 'Công ty FinTech ABC', value: '50M', contact: 'Anh Hùng' }, { id: 2, name: 'Tập đoàn Bất động sản XYZ', value: '120M', contact: 'Chị Dung' }], 'Đã liên hệ': [{ id: 3, name: 'Startup E-learning', value: '30M', contact: 'Anh Tuấn' }], 'Gửi báo giá': [{ id: 4, name: 'Ngân hàng VIBank', value: '250M', contact: 'Chị Mai' }], 'Đang thương lượng': [{ id: 5, name: 'Chuỗi bán lẻ Z-Mart', value: '80M', contact: 'Anh Khoa' }], 'Thành công': [{ id: 6, name: 'Unicorn Tech Global', value: '300M', contact: 'Chị Linh' }] };
-    const projectsDB = { 'P001': { clientName: 'Unicorn Tech Global', status: 'Đang tiến hành', managerId: 'user1', documents: [{ id: 1, name: 'Hợp đồng #123.pdf', type: 'doc', size: '1.2MB', modified: '10/09/2025' }, { id: 2, name: 'JD - Senior Backend Dev.docx', type: 'doc', size: '850KB', modified: '11/09/2025' }, { id: 3, name: 'JD - Product Manager.docx', type: 'doc', size: '855KB', modified: '11/09/2025' }], leads: [{ id: 'C01', name: 'Lê Văn An', position: 'Senior Backend Dev', status: 'Phỏng vấn V1' }, { id: 'C02', name: 'Nguyễn Thị Bình', position: 'Senior Backend Dev', status: 'Đã gửi CV' }, { id: 'C03', name: 'Trần Hùng Cường', position: 'Product Manager', status: 'Phỏng vấn V2' }, { id: 'C04', name: 'Phạm Thu Hà', position: 'Product Manager', status: 'Offer' }], logs: [{ timestamp: '2025-09-12 14:00', text: 'Ứng viên Trần Hùng Cường đã qua vòng CV.', user: 'user1' }, { timestamp: '2025-09-12 10:30', text: 'User1 đã thêm ứng viên Lê Văn An.', user: 'user1' }, { timestamp: '2025-09-12 09:00', text: 'Admin đã tạo dự án.', user: 'admin' }] }, 'P002': { clientName: 'Ngân hàng VIBank', status: 'Sắp bắt đầu', managerId: 'user2', documents: [{ id: 4, name: 'Thỏa thuận dịch vụ.pdf', type: 'doc', size: '970KB', modified: '08/09/2025' }], leads: [], logs: [{ timestamp: '2025-09-11 11:00', text: 'Dự án đã được tạo.', user: 'admin' }] } };
-    let tasksDB = [{ id: 1, content: 'Follow-up khách hàng FinTech ABC', status: 'To Do', userId: 'user1', type: 'CRM' }, { id: 2, content: 'Sắp xếp PV V2 cho Trần Hùng Cường (P001)', status: 'In Progress', userId: 'user1', type: 'PM' }, { id: 3, content: 'Gửi báo cáo tiến độ dự án P001 cho khách', status: 'Done', userId: 'user1', type: 'PM' }, { id: 4, content: 'Chuẩn bị hợp đồng cho Ngân hàng VIBank', status: 'To Do', userId: 'user2', type: 'CRM' }, { id: 5, content: 'Tìm kiếm ứng viên cho vị trí BrSE', status: 'In Progress', userId: 'user2', type: 'PM' }, { id: 6, content: 'Lên kế hoạch kickoff dự án P002', status: 'To Do', userId: 'user2', type: 'PM' }];
+    //=========== BASEOW API CONFIG ===========//
+    const baserowHost = 'https://aibm.store/';
+    const databaseToken = 'qg8JrpcRdnihf1VOZhHVo7Qyg8KlT87U';
+    const tableIds = {
+        user: '867',
+        crm: '868',
+        project: '869',
+        document: '870',
+        task: '871',
+        candidate: '872',
+        logs: '873'
+    };
 
-    //=========== APP STATE ===========//
+    //=========== APP STATE (DATA WILL BE FETCHED) ===========//
+    let usersData = {}; // Store user details by email for easy lookup
+    let crmData = [];
+    let projectsData = [];
+    let documentsData = [];
+    let tasksData = [];
+    let candidatesData = [];
+    let logsData = [];
+
     let currentUser = null;
     let activePage = 'crm';
     let activeProjectId = null;
@@ -114,7 +145,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const usernameInput = document.getElementById('username');
     const passwordInput = document.getElementById('password');
     const loginError = document.getElementById('login-error');
+    const loginButtonText = document.getElementById('login-button-text');
+    const loginSpinner = document.getElementById('login-spinner');
     const mainContent = document.getElementById('main-content');
+    const loadingIndicator = document.getElementById('loading-indicator');
     const navList = document.getElementById('nav-list');
     const userNameDisplay = document.getElementById('user-name');
     const userRoleDisplay = document.getElementById('user-role');
@@ -133,35 +167,51 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'chatbot', label: 'Chatbot', icon: 'message-circle' },
     ];
 
-    //=========== UI/UX FUNCTIONS ===========//
-    const applySidebarState = () => {
-        if (isSidebarExpanded) {
-            sidebar.classList.remove('w-16');
-            sidebar.classList.add('w-64');
-            mainContainer.classList.remove('md:pl-16');
-            mainContainer.classList.add('md:pl-64');
-            document.querySelectorAll('.sidebar-text').forEach(el => el.classList.remove('hidden'));
-            logoutButton.classList.remove('justify-center');
-        } else {
-            sidebar.classList.remove('w-64');
-            sidebar.classList.add('w-16');
-            mainContainer.classList.remove('md:pl-64');
-            mainContainer.classList.add('md:pl-16');
-            document.querySelectorAll('.sidebar-text').forEach(el => el.classList.add('hidden'));
-            logoutButton.classList.add('justify-center');
+    //=========== DATA FETCHING FUNCTIONS ===========//
+    const fetchTableData = async (tableId) => {
+        const url = `${baserowHost}api/database/rows/table/${tableId}/?user_field_names=true`;
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Authorization': `Token ${databaseToken}` },
+                cache: 'no-cache'
+            });
+            if (!response.ok) throw new Error(`Failed to fetch table ${tableId}: ${response.statusText}`);
+            const data = await response.json();
+            return data.results;
+        } catch (error) {
+            console.error(error);
+            return []; // Return empty array on error
         }
-        updateNav();
     };
 
-    const toggleSidebar = () => {
-        isSidebarExpanded = !isSidebarExpanded;
-        applySidebarState();
+    const loadAppData = async () => {
+        loadingIndicator.classList.remove('hidden');
+        mainContent.innerHTML = ''; // Clear content while loading
+        mainContent.appendChild(loadingIndicator);
+
+        const [crm, projects, documents, tasks, candidates, logs] = await Promise.all([
+            fetchTableData(tableIds.crm),
+            fetchTableData(tableIds.project),
+            fetchTableData(tableIds.document),
+            fetchTableData(tableIds.task),
+            fetchTableData(tableIds.candidate),
+            fetchTableData(tableIds.logs)
+        ]);
+        
+        crmData = crm;
+        projectsData = projects;
+        documentsData = documents;
+        tasksData = tasks;
+        candidatesData = candidates;
+        logsData = logs;
+
+        loadingIndicator.classList.add('hidden');
     };
 
-    const updateHeader = () => {
-        const currentPage = navItems.find(item => item.id === activePage);
-        pageTitle.textContent = currentPage ? currentPage.label : 'Dashboard';
-    };
+    //=========== UI/UX FUNCTIONS ===========//
+    const toggleSidebar = () => { isSidebarExpanded = !isSidebarExpanded; applySidebarState(); };
+    const updateHeader = () => { const currentPage = navItems.find(item => item.id === activePage); pageTitle.textContent = currentPage ? currentPage.label : 'Dashboard'; };
 
     //=========== RENDER FUNCTIONS ===========//
     const renderPage = () => {
@@ -185,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'tasks':
                 mainContent.innerHTML = getTasksKanbanHTML();
                 renderTasksKanban();
-                addKanbanEventListeners('task', tasksDB, renderTasksKanban);
+                addKanbanEventListeners('task', tasksData, renderTasksKanban);
                 break;
             case 'ai_logs':
                 mainContent.innerHTML = getAILogsHTML();
@@ -200,33 +250,13 @@ document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
     };
 
-    const updateNav = () => {
-        navList.innerHTML = '';
-        navItems.forEach(item => {
-            const isActive = activePage === item.id;
-            const li = document.createElement('li');
-            li.innerHTML = `
-                <button data-page="${item.id}" title="${item.label}" class="flex w-full items-center gap-3 rounded-lg p-3 text-left text-sm font-medium transition-colors ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${!isSidebarExpanded ? 'justify-center' : ''}">
-                    <i data-lucide="${item.icon}" class="inline-block h-5 w-5 flex-shrink-0"></i>
-                    <span class="sidebar-text ${!isSidebarExpanded ? 'hidden' : ''}">${item.label}</span>
-                </button>
-            `;
-            navList.appendChild(li);
-        });
-        document.querySelectorAll('#nav-list button').forEach(button => {
-            button.addEventListener('click', (e) => {
-                activePage = e.currentTarget.dataset.page;
-                renderPage();
-            });
-        });
-        // applySidebarState(); // FIX: This call created an infinite loop and was removed.
-    };
-
     // --- HTML GETTERS (with responsive classes) ---
-    const getCRMKanbanHTML = () => `
+    const getCRMKanbanHTML = () => {
+        const stages = [...new Set(crmData.map(item => item.stage.value))];
+        return `
         <div class="flex h-full flex-col">
              <div class="grid flex-1 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                ${Object.keys(crmDB).map(stage => `
+                ${stages.map(stage => `
                     <div data-status="${stage}" class="kanban-column flex flex-col rounded-lg bg-slate-800/70">
                         <h3 class="p-4 text-base font-semibold text-white border-b-2 border-slate-700">${stage}</h3>
                         <div class="task-list space-y-3 overflow-y-auto p-4"></div>
@@ -234,41 +264,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 `).join('')}
             </div>
         </div>`;
+    }
 
     const getProjectDriveHTML = () => `<div id="project-drive-container" class="flex h-full flex-col bg-slate-800/50 rounded-lg"></div>`;
     const getLeadsHTML = () => `<div class="flex h-full flex-col bg-slate-800/50 rounded-lg"><div id="leads-table-container" class="p-1 sm:p-6 overflow-x-auto"></div></div>`;
     const getAILogsHTML = () => `<div class="flex h-full flex-col bg-slate-800/50 rounded-lg"><div id="ai-logs-container" class="p-2 sm:p-6 space-y-4 overflow-y-auto"></div></div>`;
     
-    const getTasksKanbanHTML = () => `
-        <div class="grid flex-1 grid-cols-1 md:grid-cols-3 gap-6">
-            <div id="kanban-col-todo" data-status="To Do" class="kanban-column flex flex-col rounded-lg bg-slate-800/70">
-                <h3 class="p-4 text-lg font-semibold text-white border-b-2 border-slate-700">To Do</h3>
-                <div class="task-list space-y-3 overflow-y-auto p-4"></div>
-            </div>
-            <div id="kanban-col-inprogress" data-status="In Progress" class="kanban-column flex flex-col rounded-lg bg-slate-800/70">
-                <h3 class="p-4 text-lg font-semibold text-white border-b-2 border-slate-700">In Progress</h3>
-                <div class="task-list space-y-3 overflow-y-auto p-4"></div>
-            </div>
-            <div id="kanban-col-done" data-status="Done" class="kanban-column flex flex-col rounded-lg bg-slate-800/70">
-                <h3 class="p-4 text-lg font-semibold text-white border-b-2 border-slate-700">Done</h3>
-                <div class="task-list space-y-3 overflow-y-auto p-4"></div>
-            </div>
-        </div>`;
+    // --- RENDER LOGIC ---
+    const renderCRMKanban = () => {
+        const dealsByStage = crmData.reduce((acc, deal) => {
+            const stage = deal.stage.value;
+            if (!acc[stage]) acc[stage] = [];
+            acc[stage].push(deal);
+            return acc;
+        }, {});
 
-    // --- RENDER LOGIC (mostly unchanged, just UI structure is different) ---
-    const renderCRMKanban = () => { Object.keys(crmDB).forEach(stage => { const listEl = document.querySelector(`.kanban-column[data-status="${stage}"] .task-list`); listEl.innerHTML = ''; crmDB[stage].forEach(deal => { const dealEl = document.createElement('div'); dealEl.id = `deal-${deal.id}`; dealEl.className = "kanban-card rounded-lg bg-slate-700 p-3 shadow-md transition-all hover:bg-slate-600/50"; dealEl.draggable = true; dealEl.innerHTML = `<p class="font-semibold text-slate-100">${deal.name}</p><p class="text-sm text-blue-400">${deal.value}</p><p class="mt-2 text-xs text-slate-400">Liên hệ: ${deal.contact}</p>`; listEl.appendChild(dealEl); }); }); };
+        Object.keys(dealsByStage).forEach(stage => {
+            const listEl = document.querySelector(`.kanban-column[data-status="${stage}"] .task-list`);
+            if (!listEl) return;
+            listEl.innerHTML = '';
+            dealsByStage[stage].forEach(deal => {
+                const dealEl = document.createElement('div');
+                dealEl.id = `deal-${deal.id}`;
+                dealEl.className = "kanban-card rounded-lg bg-slate-700 p-3 shadow-md transition-all hover:bg-slate-600/50";
+                dealEl.draggable = true;
+                dealEl.innerHTML = `<p class="font-semibold text-slate-100">${deal.company}</p><p class="text-sm text-blue-400">${deal.value}</p><p class="mt-2 text-xs text-slate-400">Liên hệ: ${deal.contact}</p>`;
+                listEl.appendChild(dealEl);
+            });
+        });
+    };
     
     const renderProjectDrive = () => {
         const container = document.getElementById('project-drive-container');
         if (activeProjectId) { renderProjectDetail(activeProjectId); return; }
         container.innerHTML = `
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-6">
-                ${Object.entries(projectsDB).map(([id, project]) => {
-                    if (currentUser.role === 'admin' || project.managerId === currentUser.username) {
-                        return `<div data-project-id="${id}" class="project-folder flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-slate-700 hover:bg-blue-600 cursor-pointer transition-colors aspect-square">
+                ${projectsData.map(project => {
+                    const isUserInProject = project.user.some(u => u.value === currentUser.username);
+                    if (currentUser.role === 'admin' || isUserInProject) {
+                        return `<div data-project-id="${project.id}" class="project-folder flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-slate-700 hover:bg-blue-600 cursor-pointer transition-colors aspect-square">
                             <i data-lucide="folder-git-2" class="h-12 w-12 text-blue-400"></i>
-                            <span class="font-medium text-white text-center">${project.clientName}</span>
-                            <span class="text-xs text-slate-400">${project.status}</span>
+                            <span class="font-medium text-white text-center">${project.Name}</span>
+                            <span class="text-xs text-slate-400">${project.client[0]?.value || 'N/A'}</span>
                         </div>`;
                     }
                     return '';
@@ -280,75 +317,235 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const renderProjectDetail = (projectId) => {
         const container = document.getElementById('project-drive-container');
-        const project = projectsDB[projectId];
+        const project = projectsData.find(p => p.id == projectId);
+        if (!project) { container.innerHTML = '<p>Không tìm thấy dự án.</p>'; return; }
+
         const getFileIcon = (type) => ({ doc: `<i data-lucide="file-text" class="h-5 w-5 text-green-400"></i>`, image: `<i data-lucide="file-image" class="h-5 w-5 text-purple-400"></i>` }[type] || `<i data-lucide="file" class="h-5 w-5 text-slate-400"></i>`);
+        
+        const projectDocuments = project.document.map(docRef => {
+            return documentsData.find(d => d.id === docRef.id) || { Name: docRef.value, size: 'N/A', type: 'unknown' };
+        });
+
+        const projectCandidates = project.lead.map(leadRef => {
+            return candidatesData.find(c => c.id === leadRef.id) || { Name: leadRef.value, position: 'N/A', status: 'N/A' };
+        });
+
+        const projectLogs = project.logs.map(logRef => {
+            return logsData.find(l => l.id === logRef.id) || { action: logRef.value, 'Created on': new Date().toISOString() };
+        });
+
         container.innerHTML = `
             <div class="p-4 border-b border-slate-700 flex items-center gap-4">
                 <button id="project-back-btn" class="p-2 rounded-md hover:bg-slate-700"><i data-lucide="arrow-left" class="h-5 w-5"></i></button>
-                <div><h2 class="text-xl font-semibold text-white">${project.clientName}</h2><p class="text-sm text-slate-400">Quản lý: ${usersDB[project.managerId].name}</p></div>
+                <div><h2 class="text-xl font-semibold text-white">${project.Name}</h2><p class="text-sm text-slate-400">Khách hàng: ${project.client[0]?.value || 'N/A'}</p></div>
             </div>
             <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-y-auto">
                 <div class="space-y-6">
                     <div>
                         <h3 class="text-lg font-semibold mb-2 flex items-center gap-2"><i data-lucide="folder-open" class="h-5 w-5"></i> Tài liệu dự án</h3>
-                        <div class="bg-slate-900/50 rounded-lg p-3">${project.documents.map(doc => `<div class="flex items-center justify-between p-2 rounded hover:bg-slate-700/50"><div class="flex items-center gap-3">${getFileIcon(doc.type)}<span class="font-medium">${doc.name}</span></div><span class="text-xs text-slate-400">${doc.size}</span></div>`).join('')}</div>
+                        <div class="bg-slate-900/50 rounded-lg p-3">${projectDocuments.map(doc => `<div class="flex items-center justify-between p-2 rounded hover:bg-slate-700/50"><div class="flex items-center gap-3">${getFileIcon(doc.type)}<span class="font-medium">${doc.Name}</span></div><span class="text-xs text-slate-400">${doc.size}</span></div>`).join('')}</div>
                     </div>
                     <div>
                         <h3 class="text-lg font-semibold mb-2 flex items-center gap-2"><i data-lucide="users" class="h-5 w-5"></i> Danh sách ứng viên</h3>
-                        <div class="bg-slate-900/50 rounded-lg p-3 space-y-2">${project.leads.length > 0 ? project.leads.map(lead => `<div class="flex items-center justify-between p-2 rounded bg-slate-700"><div><p class="font-semibold">${lead.name}</p><p class="text-xs text-slate-400">${lead.position}</p></div><span class="text-sm font-medium px-2 py-1 rounded-full bg-blue-500/20 text-blue-300">${lead.status}</span></div>`).join('') : '<p class="text-slate-400 text-center p-4">Chưa có ứng viên nào.</p>'}</div>
+                        <div class="bg-slate-900/50 rounded-lg p-3 space-y-2">${projectCandidates.length > 0 ? projectCandidates.map(lead => `<div class="flex items-center justify-between p-2 rounded bg-slate-700"><div><p class="font-semibold">${lead.Name}</p><p class="text-xs text-slate-400">${lead.position}</p></div><span class="text-sm font-medium px-2 py-1 rounded-full bg-blue-500/20 text-blue-300">${lead.status}</span></div>`).join('') : '<p class="text-slate-400 text-center p-4">Chưa có ứng viên nào.</p>'}</div>
                     </div>
                 </div>
                 <div>
                     <h3 class="text-lg font-semibold mb-2 flex items-center gap-2"><i data-lucide="bot" class="h-5 w-5"></i> AI Logs / Hoạt động</h3>
-                    <div class="bg-slate-900/50 rounded-lg p-4 space-y-3 max-h-[500px] overflow-y-auto">${project.logs.map(log => `<div class="flex gap-3"><div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0 text-xs">${usersDB[log.user]?.name.substring(0,2).toUpperCase()}</div><div><p class="text-sm">${log.text}</p><p class="text-xs text-slate-500">${new Date(log.timestamp).toLocaleString('vi-VN')}</p></div></div>`).join('')}</div>
+                    <div class="bg-slate-900/50 rounded-lg p-4 space-y-3 max-h-[500px] overflow-y-auto">${projectLogs.map(log => `<div class="flex gap-3"><div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0 text-xs">${(usersData[log.user?.[0]?.value || '']?.name || 'AI').substring(0,2).toUpperCase()}</div><div><p class="text-sm">${log.action}</p><p class="text-xs text-slate-500">${new Date(log['Created on']).toLocaleString('vi-VN')}</p></div></div>`).join('')}</div>
                 </div>
             </div>`;
         document.getElementById('project-back-btn').addEventListener('click', () => { activeProjectId = null; renderProjectDrive(); });
         lucide.createIcons();
     };
 
-    const renderLeadsTable = () => { const container = document.getElementById('leads-table-container'); let allLeads = []; Object.entries(projectsDB).forEach(([projectId, project]) => { if(currentUser.role === 'admin' || project.managerId === currentUser.username) { project.leads.forEach(lead => { allLeads.push({ ...lead, clientName: project.clientName }); }); } }); container.innerHTML = `<table class="w-full text-left text-sm text-slate-300"><thead class="bg-slate-700/50 text-xs uppercase text-slate-400"><tr><th scope="col" class="px-6 py-3">Tên ứng viên</th><th scope="col" class="px-6 py-3">Vị trí</th><th scope="col" class="px-6 py-3">Dự án</th><th scope="col" class="px-6 py-3">Trạng thái</th></tr></thead><tbody>${allLeads.map(lead => `<tr class="border-b border-slate-700 transition-colors hover:bg-slate-700/50"><td class="px-6 py-4 font-medium text-white">${lead.name}</td><td class="px-6 py-4">${lead.position}</td><td class="px-6 py-4">${lead.clientName}</td><td class="px-6 py-4"><span class="text-sm font-medium px-2 py-1 rounded-full bg-blue-500/20 text-blue-300">${lead.status}</span></td></tr>`).join('')}</tbody></table>`; };
-    const renderAILogs = () => { const container = document.getElementById('ai-logs-container'); let allLogs = []; Object.entries(projectsDB).forEach(([projectId, project]) => { if(currentUser.role === 'admin' || project.managerId === currentUser.username) { project.logs.forEach(log => { allLogs.push({ ...log, clientName: project.clientName }); }); } }); allLogs.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)); container.innerHTML = allLogs.map(log => `<div class="flex gap-3 p-3 rounded-lg bg-slate-900/50"><div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0 text-xs">${usersDB[log.user]?.name.substring(0,2).toUpperCase()}</div><div><p class="text-sm"><span class="font-semibold text-blue-400">[${log.clientName}]</span> ${log.text}</p><p class="text-xs text-slate-500">${new Date(log.timestamp).toLocaleString('vi-VN')}</p></div></div>`).join(''); };
-    const renderTasksKanban = () => { document.querySelectorAll('.task-list').forEach(list => list.innerHTML = ''); const visibleTasks = currentUser.role === 'admin' ? tasksDB : tasksDB.filter(t => t.userId === currentUser.username); visibleTasks.forEach(task => { const taskEl = document.createElement('div'); taskEl.id = `task-${task.id}`; taskEl.className = "kanban-card rounded-lg bg-slate-700 p-4 shadow-md transition-all hover:bg-slate-600/50"; taskEl.draggable = true; const tagColor = task.type === 'CRM' ? 'bg-pink-500/20 text-pink-300' : 'bg-green-500/20 text-green-300'; taskEl.innerHTML = `<div class="flex justify-between items-start"><p class="text-slate-200">${task.content}</p><span class="text-xs font-medium px-2 py-1 rounded-full ${tagColor}">${task.type}</span></div><div class="mt-2 text-xs text-slate-400"><span>Thực hiện: </span><span class="font-semibold text-slate-300">${usersDB[task.userId]?.name || task.userId}</span></div>`; if (task.status === 'To Do') document.querySelector('#kanban-col-todo .task-list').appendChild(taskEl); if (task.status === 'In Progress') document.querySelector('#kanban-col-inprogress .task-list').appendChild(taskEl); if (task.status === 'Done') document.querySelector('#kanban-col-done .task-list').appendChild(taskEl); }); };
-    const getChatbotHTML = () => `<div class="flex h-full flex-col bg-slate-800/50 rounded-lg"><div class="p-4 border-b border-slate-700"><h2 class="text-xl font-semibold text-white">Chatbot AI</h2><p class="text-sm text-slate-400">Trợ lý ảo giúp bạn truy xuất thông tin, tạo task, theo dõi dự án.</p></div><div id="chatbot-messages" class="flex-1 space-y-4 overflow-y-auto p-4"><div class="flex items-end gap-2 justify-start"><div class="h-8 w-8 rounded-full bg-blue-500 flex-shrink-0 flex items-center justify-center"><i data-lucide="bot" class="h-5 w-5"></i></div><div class="max-w-xs rounded-lg px-4 py-2 md:max-w-md rounded-bl-none bg-slate-700 text-slate-200"><p>Xin chào! Tôi có thể giúp gì cho bạn? Hãy thử hỏi: "Tình hình dự án Unicorn Tech?" hoặc "Tạo task mới cho Hoàng Long."</p></div></div></div><div class="flex items-center gap-2 border-t border-slate-700 p-4"><input id="chatbot-input" type="text" placeholder="Nhập tin nhắn..." class="flex-1 rounded-lg border-2 border-slate-600 bg-slate-700 px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" /><button id="chatbot-send" class="rounded-lg bg-blue-600 p-2 text-white transition-colors hover:bg-blue-700"><i data-lucide="send" class="h-5 w-5"></i></button></div></div>`;
-    const addChatbotEventListeners = () => { const sendBtn = document.getElementById('chatbot-send'); const input = document.getElementById('chatbot-input'); const messagesContainer = document.getElementById('chatbot-messages'); lucide.createIcons(); const sendMessage = () => { const text = input.value.trim(); if (text === '') return; messagesContainer.innerHTML += `<div class="flex items-end gap-2 justify-end"><div class="max-w-xs rounded-lg px-4 py-2 md:max-w-md rounded-br-none bg-blue-600 text-white"><p>${text}</p></div></div>`; input.value = ''; messagesContainer.scrollTop = messagesContainer.scrollHeight; setTimeout(() => { let botResponse = "Cảm ơn bạn đã chia sẻ. Tôi đang xử lý thông tin."; if (text.toLowerCase().includes("unicorn tech")) { botResponse = "Dự án Unicorn Tech đang có 4 ứng viên, trong đó 1 đã nhận offer. Cần sắp xếp phỏng vấn V2 cho Trần Hùng Cường."; } else if (text.toLowerCase().includes("tạo task")) { botResponse = "Đã tạo task mới. Bạn có thể xem trong trang 'Công việc'."; } messagesContainer.innerHTML += `<div class="flex items-end gap-2 justify-start"><div class="h-8 w-8 rounded-full bg-blue-500 flex-shrink-0 flex items-center justify-center"><i data-lucide="bot" class="h-5 w-5"></i></div><div class="max-w-xs rounded-lg px-4 py-2 md:max-w-md rounded-bl-none bg-slate-700 text-slate-200"><p>${botResponse}</p></div></div>`; messagesContainer.scrollTop = messagesContainer.scrollHeight; lucide.createIcons(); }, 1000); }; sendBtn.addEventListener('click', sendMessage); input.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); }); };
+    const renderLeadsTable = () => { 
+        const container = document.getElementById('leads-table-container'); 
+        let accessibleProjectIds = [];
+        if (currentUser.role === 'admin') {
+            accessibleProjectIds = projectsData.map(p => p.id);
+        } else {
+            accessibleProjectIds = projectsData.filter(p => p.user.some(u => u.value === currentUser.username)).map(p => p.id);
+        }
+        const visibleCandidates = candidatesData.filter(c => c.project.some(pRef => accessibleProjectIds.includes(pRef.id)));
+
+        container.innerHTML = `<table class="w-full text-left text-sm text-slate-300"><thead class="bg-slate-700/50 text-xs uppercase text-slate-400"><tr><th scope="col" class="px-6 py-3">Tên ứng viên</th><th scope="col" class="px-6 py-3">Vị trí</th><th scope="col" class="px-6 py-3">Dự án</th><th scope="col" class="px-6 py-3">Trạng thái</th></tr></thead><tbody>${visibleCandidates.map(lead => `<tr class="border-b border-slate-700 transition-colors hover:bg-slate-700/50"><td class="px-6 py-4 font-medium text-white">${lead.Name}</td><td class="px-6 py-4">${lead.position}</td><td class="px-6 py-4">${lead.project[0]?.value || 'N/A'}</td><td class="px-6 py-4"><span class="text-sm font-medium px-2 py-1 rounded-full bg-blue-500/20 text-blue-300">${lead.status}</span></td></tr>`).join('')}</tbody></table>`; 
+    };
+    
+    const renderTasksKanban = () => { 
+        document.querySelectorAll('.task-list').forEach(list => list.innerHTML = ''); 
+        const visibleTasks = currentUser.role === 'admin' ? tasksData : tasksData.filter(t => t.user.some(u => u.value === currentUser.username)); 
+        
+        visibleTasks.forEach(task => { 
+            const taskEl = document.createElement('div'); 
+            taskEl.id = `task-${task.id}`; 
+            taskEl.className = "kanban-card rounded-lg bg-slate-700 p-4 shadow-md transition-all hover:bg-slate-600/50"; 
+            taskEl.draggable = true; 
+            const assignee = task.user[0] ? (usersData[task.user[0].value]?.name || task.user[0].value) : 'N/A';
+            taskEl.innerHTML = `<p class="text-slate-200">${task.Name}</p><div class="mt-2 text-xs text-slate-400"><span>Thực hiện: </span><span class="font-semibold text-slate-300">${assignee}</span></div>`; 
+            
+            const status = task.status.value;
+            let column;
+            if (status === 'To Do') column = document.querySelector('#kanban-col-todo .task-list');
+            else if (status === 'In Progress') column = document.querySelector('#kanban-col-inprogress .task-list');
+            else if (status === 'Done') column = document.querySelector('#kanban-col-done .task-list');
+            
+            if (column) column.appendChild(taskEl);
+        }); 
+    };
     
     //=========== EVENT HANDLERS ===========//
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        const user = usersDB[usernameInput.value];
-        if (user && user.password === passwordInput.value) {
-            currentUser = { username: usernameInput.value, ...user };
+        loginButtonText.classList.add('hidden');
+        loginSpinner.classList.remove('hidden');
+        loginError.classList.add('hidden');
+        
+        const email = usernameInput.value;
+        const password = passwordInput.value;
+
+        const allUsers = await fetchTableData(tableIds.user);
+        if (allUsers.length === 0) {
+            loginError.textContent = 'Không thể lấy dữ liệu người dùng. Vui lòng thử lại.';
+            loginError.classList.remove('hidden');
+            loginButtonText.classList.remove('hidden');
+            loginSpinner.classList.add('hidden');
+            return;
+        }
+
+        allUsers.forEach(user => {
+            const name = user.email.split('@')[0];
+            usersData[user.email] = { name: name.charAt(0).toUpperCase() + name.slice(1), role: user.role.value };
+        });
+
+        const foundUser = allUsers.find(user => user.email === email);
+
+        if (foundUser && foundUser.pass === password) {
+            currentUser = { username: foundUser.email, name: usersData[foundUser.email].name, role: usersData[foundUser.email].role };
+            
+            await loadAppData(); // Fetch all necessary data after login
+
             loginPage.classList.add('hidden');
             dashboardPage.classList.remove('hidden');
             userNameDisplay.textContent = currentUser.name;
-            userRoleDisplay.textContent = currentUser.role === 'admin' ? 'Quản trị viên' : 'Nhân viên';
+            userRoleDisplay.textContent = currentUser.role;
             renderPage();
         } else {
-            loginError.textContent = 'Tên đăng nhập hoặc mật khẩu không đúng.';
+            loginError.textContent = 'Email hoặc mật khẩu không đúng.';
             loginError.classList.remove('hidden');
         }
-    };
-    
-    const handleLogout = () => { currentUser = null; loginPage.classList.remove('hidden'); dashboardPage.classList.add('hidden'); usernameInput.value = ''; passwordInput.value = ''; loginError.classList.add('hidden'); };
-    
-    const addKanbanEventListeners = (type, data, renderFunc) => { const cards = document.querySelectorAll('.kanban-card'); const columns = document.querySelectorAll('.kanban-column'); cards.forEach(card => { card.addEventListener('dragstart', e => { draggedElementId = e.target.id; setTimeout(() => e.target.classList.add('opacity-50'), 0); }); card.addEventListener('dragend', e => { e.target.classList.remove('opacity-50'); draggedElementId = null; }); }); columns.forEach(column => { column.addEventListener('dragover', e => e.preventDefault()); column.addEventListener('drop', e => { e.preventDefault(); if (!draggedElementId) return; const newStatus = e.currentTarget.dataset.status; const id = draggedElementId.split('-')[1]; if (type === 'task') { const taskToUpdate = data.find(t => t.id == id); if (taskToUpdate && taskToUpdate.status !== newStatus) { taskToUpdate.status = newStatus; renderFunc(); addKanbanEventListeners(type, data, renderFunc); } } }); }); };
 
-    //=========== INITIALIZATION ===========//
-    const init = () => {
-        document.getElementById('login-icon-container').innerHTML = `<i data-lucide="briefcase" class="h-12 w-12"></i>`;
-        document.getElementById('logout-icon-container').innerHTML = `<i data-lucide="log-out" class="h-5 w-5"></i>`;
-        lucide.createIcons();
-        loginForm.addEventListener('submit', handleLogin);
-        logoutButton.addEventListener('click', handleLogout);
-        sidebarToggleButton.addEventListener('click', toggleSidebar);
-        applySidebarState(); // Set initial state
+        loginButtonText.classList.remove('hidden');
+        loginSpinner.classList.add('hidden');
     };
+    
+    //=========== INITIALIZATION ===========//
+
+    // Placeholder functions to avoid breaking the code, will be filled if time permits
+    const applySidebarState = () => { if (isSidebarExpanded) { sidebar.classList.remove('w-16'); sidebar.classList.add('w-64'); mainContainer.classList.remove('md:pl-16'); mainContainer.classList.add('md:pl-64'); document.querySelectorAll('.sidebar-text').forEach(el => el.classList.remove('hidden')); logoutButton.classList.remove('justify-center'); } else { sidebar.classList.remove('w-64'); sidebar.classList.add('w-16'); mainContainer.classList.remove('md:pl-64'); mainContainer.classList.add('md:pl-16'); document.querySelectorAll('.sidebar-text').forEach(el => el.classList.add('hidden')); logoutButton.classList.add('justify-center'); } updateNav(); };
+    const updateNav = () => { navList.innerHTML = ''; navItems.forEach(item => { const isActive = activePage === item.id; const li = document.createElement('li'); li.innerHTML = `<button data-page="${item.id}" title="${item.label}" class="flex w-full items-center gap-3 rounded-lg p-3 text-left text-sm font-medium transition-colors ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${!isSidebarExpanded ? 'justify-center' : ''}"><i data-lucide="${item.icon}" class="inline-block h-5 w-5 flex-shrink-0"></i><span class="sidebar-text ${!isSidebarExpanded ? 'hidden' : ''}">${item.label}</span></button>`; navList.appendChild(li); }); document.querySelectorAll('#nav-list button').forEach(button => { button.addEventListener('click', (e) => { activePage = e.currentTarget.dataset.page; renderPage(); }); }); };
+    const getTasksKanbanHTML = () => `<div class="grid flex-1 grid-cols-1 md:grid-cols-3 gap-6"><div id="kanban-col-todo" data-status="To Do" class="kanban-column flex flex-col rounded-lg bg-slate-800/70"><h3 class="p-4 text-lg font-semibold text-white border-b-2 border-slate-700">To Do</h3><div class="task-list space-y-3 overflow-y-auto p-4"></div></div><div id="kanban-col-inprogress" data-status="In Progress" class="kanban-column flex flex-col rounded-lg bg-slate-800/70"><h3 class="p-4 text-lg font-semibold text-white border-b-2 border-slate-700">In Progress</h3><div class="task-list space-y-3 overflow-y-auto p-4"></div></div><div id="kanban-col-done" data-status="Done" class="kanban-column flex flex-col rounded-lg bg-slate-800/70"><h3 class="p-4 text-lg font-semibold text-white border-b-2 border-slate-700">Done</h3><div class="task-list space-y-3 overflow-y-auto p-4"></div></div></div>`;
+    const renderAILogs = () => { const container = document.getElementById('ai-logs-container'); let accessibleProjectIds = []; if (currentUser.role === 'admin') { accessibleProjectIds = projectsData.map(p => p.id); } else { accessibleProjectIds = projectsData.filter(p => p.user.some(u => u.value === currentUser.username)).map(p => p.id); } const visibleLogs = logsData.filter(l => l.project.some(pRef => accessibleProjectIds.includes(pRef.id))); visibleLogs.sort((a,b) => new Date(b['Created on']) - new Date(a['Created on'])); container.innerHTML = visibleLogs.map(log => `<div class="flex gap-3 p-3 rounded-lg bg-slate-900/50"><div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0 text-xs">${(usersData[log.user?.[0]?.value || '']?.name || 'AI').substring(0,2).toUpperCase()}</div><div><p class="text-sm"><span class="font-semibold text-blue-400">[${log.project[0]?.value || 'Global'}]</span> ${log.action}</p><p class="text-xs text-slate-500">${new Date(log['Created on']).toLocaleString('vi-VN')}</p></div></div>`).join(''); };
+    const getChatbotHTML = () => `<div class="flex h-full flex-col bg-slate-800/50 rounded-lg"><div class="p-4 border-b border-slate-700"><h2 class="text-xl font-semibold text-white">Chatbot AI</h2><p class="text-sm text-slate-400">Trợ lý ảo giúp bạn truy xuất thông tin, tạo task, theo dõi dự án.</p></div><div id="chatbot-messages" class="flex-1 space-y-4 overflow-y-auto p-4"><div class="flex items-end gap-2 justify-start"><div class="h-8 w-8 rounded-full bg-blue-500 flex-shrink-0 flex items-center justify-center"><i data-lucide="bot" class="h-5 w-5"></i></div><div class="max-w-xs rounded-lg px-4 py-2 md:max-w-md rounded-bl-none bg-slate-700 text-slate-200"><p>Xin chào! Tôi có thể giúp gì cho bạn?</p></div></div></div><div class="flex items-center gap-2 border-t border-slate-700 p-4"><input id="chatbot-input" type="text" placeholder="Nhập tin nhắn..." class="flex-1 rounded-lg border-2 border-slate-600 bg-slate-700 px-4 py-2 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" /><button id="chatbot-send" class="rounded-lg bg-blue-600 p-2 text-white transition-colors hover:bg-blue-700"><i data-lucide="send" class="h-5 w-5"></i></button></div></div>`;
+    const addChatbotEventListeners = () => {
+        const sendBtn = document.getElementById('chatbot-send');
+        const input = document.getElementById('chatbot-input');
+        const messagesContainer = document.getElementById('chatbot-messages');
+        lucide.createIcons();
+
+        let chatThreadId = null; // Tạo memory cho mỗi phiên chat của người dùng
+
+        const sendMessage = async () => {
+            const text = input.value.trim();
+            if (text === '') return;
+
+            // Hiển thị tin nhắn của người dùng
+            messagesContainer.innerHTML += `<div class="flex items-end gap-2 justify-end"><div class="max-w-xs rounded-lg px-4 py-2 md:max-w-md rounded-br-none bg-blue-600 text-white"><p>${text}</p></div></div>`;
+            input.value = '';
+            input.disabled = true;
+            sendBtn.disabled = true;
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // Hiển thị chỉ báo "bot đang trả lời"
+            const thinkingIndicatorId = `thinking-${Date.now()}`;
+            messagesContainer.innerHTML += `
+                <div id="${thinkingIndicatorId}" class="flex items-end gap-2 justify-start">
+                    <div class="h-8 w-8 rounded-full bg-blue-500 flex-shrink-0 flex items-center justify-center"><i data-lucide="bot" class="h-5 w-5"></i></div>
+                    <div class="max-w-xs rounded-lg px-4 py-2 md:max-w-md rounded-bl-none bg-slate-700 text-slate-200 flex items-center gap-2">
+                       <span class="h-2 w-2 bg-slate-400 rounded-full animate-pulse"></span>
+                       <span class="h-2 w-2 bg-slate-400 rounded-full animate-pulse [animation-delay:0.2s]"></span>
+                       <span class="h-2 w-2 bg-slate-400 rounded-full animate-pulse [animation-delay:0.4s]"></span>
+                    </div>
+                </div>`;
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            lucide.createIcons();
+
+            // Tạo threadid nếu chưa có
+            if (!chatThreadId) {
+                chatThreadId = crypto.randomUUID();
+            }
+
+            const webhookUrl = 'https://aps.aibm.space/webhook/recruit1';
+            const payload = {
+                task: 'chatbot',
+                prompt: text,
+                email: currentUser.username,
+                threadid: chatThreadId
+            };
+
+            try {
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error(`Webhook request failed: ${response.statusText}`);
+
+                const data = await response.json();
+                const botResponse = data[0]?.output || "Xin lỗi, tôi chưa hiểu ý bạn.";
+                
+                // Hiển thị câu trả lời từ webhook
+                const thinkingElement = document.getElementById(thinkingIndicatorId);
+                if(thinkingElement) {
+                    thinkingElement.innerHTML = `
+                        <div class="h-8 w-8 rounded-full bg-blue-500 flex-shrink-0 flex items-center justify-center"><i data-lucide="bot" class="h-5 w-5"></i></div>
+                        <div class="max-w-xs rounded-lg px-4 py-2 md:max-w-md rounded-bl-none bg-slate-700 text-slate-200"><p>${botResponse}</p></div>`;
+                }
+
+            } catch (error) {
+                console.error('Webhook error:', error);
+                const errorMessage = "Rất tiếc, đã có lỗi kết nối. Vui lòng thử lại sau.";
+                 const thinkingElement = document.getElementById(thinkingIndicatorId);
+                 if(thinkingElement) {
+                    thinkingElement.innerHTML = `
+                        <div class="h-8 w-8 rounded-full bg-red-500 flex-shrink-0 flex items-center justify-center"><i data-lucide="alert-triangle" class="h-5 w-5"></i></div>
+                        <div class="max-w-xs rounded-lg px-4 py-2 md:max-w-md rounded-bl-none bg-slate-700 text-slate-200"><p>${errorMessage}</p></div>`;
+                }
+            } finally {
+                input.disabled = false;
+                sendBtn.disabled = false;
+                input.focus();
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                lucide.createIcons();
+            }
+        };
+
+        sendBtn.addEventListener('click', sendMessage);
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !input.disabled) sendMessage();
+        });
+    };
+    const handleLogout = () => { currentUser = null; loginPage.classList.remove('hidden'); dashboardPage.classList.add('hidden'); usernameInput.value = ''; passwordInput.value = ''; loginError.classList.add('hidden'); };
+    const addKanbanEventListeners = (type, data, renderFunc) => { const cards = document.querySelectorAll('.kanban-card'); const columns = document.querySelectorAll('.kanban-column'); cards.forEach(card => { card.addEventListener('dragstart', e => { draggedElementId = e.target.id; setTimeout(() => e.target.classList.add('opacity-50'), 0); }); card.addEventListener('dragend', e => { e.target.classList.remove('opacity-50'); draggedElementId = null; }); }); columns.forEach(column => { column.addEventListener('dragover', e => e.preventDefault()); column.addEventListener('drop', e => { e.preventDefault(); if (!draggedElementId) return; const newStatus = e.currentTarget.dataset.status; const id = draggedElementId.split('-')[1]; if (type === 'task') { const taskToUpdate = data.find(t => t.id == id); if (taskToUpdate && taskToUpdate.status.value !== newStatus) { /* API call to update would go here */ console.log(`Updating task ${id} to ${newStatus}`); taskToUpdate.status.value = newStatus; renderFunc(); addKanbanEventListeners(type, data, renderFunc); } } }); }); };
+    const init = () => { document.getElementById('login-icon-container').innerHTML = `<i data-lucide="briefcase" class="h-12 w-12"></i>`; document.getElementById('logout-icon-container').innerHTML = `<i data-lucide="log-out" class="h-5 w-5"></i>`; lucide.createIcons(); loginForm.addEventListener('submit', handleLogin); logoutButton.addEventListener('click', handleLogout); sidebarToggleButton.addEventListener('click', toggleSidebar); applySidebarState(); };
 
     init();
 });
 </script>
 </body>
 </html>
+
+
 
 
